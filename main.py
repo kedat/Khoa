@@ -7,26 +7,26 @@ from PyQt6 import QtWidgets
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QMouseEvent
 from PyQt6.QtGui import QIntValidator
-import iconsImage
 from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QLabel,QMessageBox
 from PyQt6.QtCore import QMimeData
 from PyQt6.QtGui import QDrag
 from PyQt6.QtWidgets import QMainWindow, QFrame 
 from PyQt6.QtCore import QPointF
-import json
 from PyQt6.QtCore import QDate
+from PyQt6.QtCore import pyqtSignal
 
-classes_db = [
-           {'ClassName': 'Math', 'ClassLimit': 30},
-           {'ClassName': 'Science', 'ClassLimit': 25}
+
+all_class = [
+           {'ClassName': 'Math', 'ClassLimit': 10},
+           {'ClassName': 'Science', 'ClassLimit': 15}
 ]
-students_db = [
+all_student = [
             {'FullName': 'John Doe', 'Date': '2005-09-15', 'ClassId':'Math'},
             {'FullName': 'Jane Smith', 'Date': '2004-05-22','ClassId':'Math'},
-            {'FullName': 'dat Doe', 'Date': '2005-09-15', 'ClassId':'Science'},
-            {'FullName': 'dat ', 'Date': '2005-01-15', 'ClassId':'None'},
+            {'FullName': 'Jevm', 'Date': '2005-09-15', 'ClassId':'Science'},
+            {'FullName': 'Sekko ', 'Date': '2005-01-15', 'ClassId':'None'},
         ]
-users_db = {'a': '12345678'}  # Dictionary to store users, format: {userName: password}
+all_user = {'a': '12345678'}  # Dictionary to store users, format: {userName: password}
 
 class LoginSignUpWindow(QMainWindow):
     def __init__(self):
@@ -46,13 +46,11 @@ class LoginSignUpWindow(QMainWindow):
 
         self.btnLogInTo.clicked.connect(self.LoggingIn)
 
-        # Simulated "database" as instance variable
-
         # Set the current widget to the sign-in page
         self.stackedWidget.setCurrentWidget(self.SignInPage)
 
     # Moving to SignUp Page by clicking Create Account link
-    def on_lblCreateAccount_clicked(self, event):
+    def on_lblCreateAccount_clicked(self):
         self.stackedWidget.setCurrentWidget(self.SignUpPage)
 
     # Method to add a new user to the simulated database
@@ -63,14 +61,14 @@ class LoginSignUpWindow(QMainWindow):
         password = self.txtPassword_2.text()
 
         # Check if user already exists
-        if userName in users_db:
+        if userName in all_user:
             self.lblUserNameError.setText("UserName Already Exists")
         else:
             self.lblUserNameError.setText("")
             if len(password) >= 8 and len(cPassword) >= 8:
                 if password == cPassword:
                     # Add the new user to the "database"
-                    users_db[userName] = password
+                    all_user[userName] = password
 
                     # Show success message and reset text fields
                     QMessageBox.information(self, "Success", "User added successfully!")
@@ -95,7 +93,7 @@ class LoginSignUpWindow(QMainWindow):
         password = self.txtPasswordLogIn.text()
 
         # Check if the user exists and the password matches
-        if userName in users_db and users_db[userName] == password:
+        if userName in all_user and all_user[userName] == password:
             # Authentication successful
             self.current_user = userName  # Store the username as current user
             print("Authentication successful, opening next window...")
@@ -153,7 +151,7 @@ class TeacherWindow(QMainWindow):
 
     def fillStudentTable(self):
         # Fetch student data from the simulated database
-        rows = students_db
+        rows = all_student
         
         self.tableStudentData.setRowCount(len(rows))
         self.tableStudentData.setColumnCount(3)  # Only two columns now
@@ -171,7 +169,7 @@ class TeacherWindow(QMainWindow):
 
     def fillClassTable(self, CurrentId):
     # Fetch class data for the given teacher from the simulated database
-        rows = [(class_info['ClassName'], class_info['ClassLimit']) for class_info in classes_db]
+        rows = [(class_info['ClassName'], class_info['ClassLimit']) for class_info in all_class]
         
         self.tableAllClasses.setRowCount(len(rows))
         self.tableAllClasses.setColumnCount(2)
@@ -200,11 +198,12 @@ class TeacherWindow(QMainWindow):
         layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         layout.setSpacing(20)
         
-        classes = [cls['ClassName'] for cls in classes_db]
+        classes = [cls['ClassName'] for cls in all_class]
         for cls in classes:
             lbl.setText("")
             btn = QPushButton(cls)
             btn.setStyleSheet('background-color: rgb(77, 78, 186); color: white;font-size: 14pt;')
+            btn.setFixedWidth(250)
             layout.addWidget(btn)
 
         def on_button_clicked():
@@ -274,7 +273,7 @@ class AddNewClass(QMainWindow):
         if className != "" and limit > 0:
             if limit <= 20:
                 # Append the class data to the list instead of inserting into a database
-                classes_db.append({
+                all_class.append({
                     "ClassName": className,
                     "ClassLimit": limit,
                     "StudentInOneRow": rowLimit,
@@ -294,7 +293,6 @@ class AddNewClass(QMainWindow):
 
 class ClassDetailsWindow(QMainWindow):
     def __init__(self, idx, btnName):
-        # Initialize the object with two input arguments, idx and btnName
         self.teacherName = idx
         self.btnName = btnName
         super(ClassDetailsWindow, self).__init__()
@@ -303,57 +301,32 @@ class ClassDetailsWindow(QMainWindow):
         self.fillStudent()
 
     def addingStudentToClass(self):
-        self.new = AddStudentToClass(self.btnName, students_db, self.fillStudent)
+        self.new = AddStudentToClass(self.btnName, all_student, self.fillStudent)
+        self.new.studentAdded.connect(self.fillStudent)  # Refresh the student list when a new student is added
         self.new.show()
+        loadUi("ClassStudents.ui", self)
+        self.btnAddStudentToClass.clicked.connect(self.addingStudentToClass)
+
 
     def clearStudentPage(self):
-        for child in reversed(self.RegisteredStudent.children()):
-            if not isinstance(child, QVBoxLayout):
-                child.deleteLater()
+        # Clear all widgets from the RegisteredStudent frame
+        if self.RegisteredStudent.layout() is not None:
+            # Remove all widgets in the layout
+            while self.RegisteredStudent.layout().count():
+                item = self.RegisteredStudent.layout().takeAt(0)
+                widget = item.widget()
+                if widget:
+                    widget.deleteLater()
+            # Remove the layout itself
+            self.RegisteredStudent.layout().deleteLater()
 
-        # Retrieve class data from classes_db list
-        class_info = next((item for item in classes_db if item["ClassName"] == self.btnName), None)
-        if class_info:
-            total_seats = class_info["ClassLimit"]
-            num_columns = class_info["StudentInOneRow"]
-            self.ClassId = class_info.get("Id", "")  # If there's no ID, it'll default to an empty string
-
-            # Create a grid layout to hold the seats
-            grid = QGridLayout()
-
-            # Create and add labels for each chair with a border
-            for i in range(total_seats):
-                row = i // num_columns
-                col = i % num_columns
-
-                chair_frame = QFrame()
-                chair_frame.setStyleSheet("border: 2px solid #4d4eba; ")
-                chair_frame.setFrameShape(QFrame.Shape.Box)
-
-                chair_frame_layout = QGridLayout(chair_frame)
-                chair_label = QLabel(f"Chair {i+1}")
-                chair_label.setStyleSheet("QFrame { color: #4d4eba; }")
-                chair_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                chair_label.setAcceptDrops(True)
-
-                chair_frame_layout.addWidget(chair_label, 0, 0)
-                grid.addWidget(chair_frame, row, col)
-                chair_frame.setMinimumHeight(70)
-                chair_frame.setAcceptDrops(True)
-                chair_frame.setCursor(Qt.CursorShape.PointingHandCursor)
-
-            grid_widget = QWidget()
-            grid_widget.setLayout(grid)
-            grid_widget.setStyleSheet("border: none;")
-            seats_layout = self.Seats.layout()
-            seats_layout.addRow(grid_widget)
 
     def fillStudent(self):
-        # Retrieve student data from students_db list
-        enrolled_students = [student for student in students_db if student["ClassId"] == self.btnName]
-        print(
-            
-        )
+        # Clear the previous student list
+        self.clearStudentPage()
+
+        # Retrieve student data from all_student list
+        enrolled_students = [student for student in all_student if student["ClassId"] == self.btnName]
 
         # Create a grid layout with 2 columns
         grid = QGridLayout()
@@ -369,32 +342,56 @@ class ClassDetailsWindow(QMainWindow):
             # Create a profile pic widget with a default image
             profile_pic = QLabel()
             profile_pic.setPixmap(QPixmap("Profile.png"))  # Use student's profile picture
-            profile_pic.setFixedSize(70, 70)
+            profile_pic.setFixedSize(80, 80)
+            # profile_pic.setAlignment(Qt.AlignmentFlag.AlignCenter)
             student_frame_layout.addWidget(profile_pic)
 
             # Create a label for the student name
             name_label = QLabel(student["FullName"])
-            name_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-            name_label.setContentsMargins(25, 0, 0, 0)
+            # name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            name_label.setContentsMargins(10, 0, 10, 0)
             student_frame_layout.addWidget(name_label)
 
-            # Make the student frame draggable
+            # Add a "Remove" button for each student
+            btnRemoveStudent = QPushButton("Remove")
+            btnRemoveStudent.clicked.connect(lambda _, s=student["FullName"]: self.removeStudentFromClass(s))
+            btnRemoveStudent.setFixedWidth(100)
+            student_frame_layout.addWidget(btnRemoveStudent)
+
             student_frame.setMouseTracking(True)
+
+            # Make the student frame clickable and connect to the handleProfileClick function
             student_frame.setCursor(Qt.CursorShape.PointingHandCursor)
 
-            def handle_mouse_press(event, sid, s):
+            # Create the mouse press event handler
+            def handle_mouse_press(event, sid):
                 self.handleProfileClick(sid)
-                self.startDrag(s, event)
+                self.startDrag(student_frame, event)
 
-            student_frame.mousePressEvent = lambda event, sid=student["FullName"], s=student_frame: handle_mouse_press(event, sid, s)
+            # Connect the mousePressEvent to the handle_mouse_press function
+            student_frame.mousePressEvent = lambda event, sid=student["FullName"]: handle_mouse_press(event, sid)
 
             grid.addWidget(student_frame, row, col)
 
         # Create a widget to hold the grid and add it to the RegisteredStudent layout
         grid_widget = QWidget()
         grid_widget.setLayout(grid)
+
+        # Get the layout of RegisteredStudent, and if it doesn't exist, create a new one
         seats_layout = self.RegisteredStudent.layout()
-        seats_layout.addRow(grid_widget)
+        if seats_layout is None:
+            seats_layout = QVBoxLayout(self.RegisteredStudent)
+            self.RegisteredStudent.setLayout(seats_layout)
+
+        # Clear the existing layout content
+        while seats_layout.count():
+            item = seats_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+
+        # Add the new grid_widget to the layout
+        seats_layout.addWidget(grid_widget)
 
     def startDrag(self, frame, event):
         self.current_student = frame
@@ -406,17 +403,28 @@ class ClassDetailsWindow(QMainWindow):
         drag.exec(Qt.DropAction.MoveAction)
 
     def handleProfileClick(self, student_id):
-        # Retrieve student data from students_db list
-        student = next((stu for stu in students_db if stu["FullName"] == student_id), None)
+        student = next((stu for stu in all_student if stu["FullName"] == student_id), None)
         if student:
             self.lblName.setText(student["FullName"])
             self.lblDate.setText(student["Date"])
 
+    def removeStudentFromClass(self, student_name):
+        student = next((s for s in all_student if s['FullName'] == student_name), None)
+        if student:
+            student['ClassId'] = 'None'
+            QMessageBox.information(self, "Removed", f"{student_name} has been removed from {self.btnName}.")
+            loadUi("ClassStudents.ui", self)
+            self.btnAddStudentToClass.clicked.connect(self.addingStudentToClass)
+            self.fillStudent()
+
+
 
 class AddStudentToClass(QMainWindow): 
-    def __init__(self, Id, students_db, fillStudent):
+    studentAdded = pyqtSignal()  # Custom signal to indicate a student was added
+
+    def __init__(self, Id, all_student, fillStudent):
         self.ClassId = Id  # Class name (e.g., 'Math')
-        self.students_db = students_db
+        self.all_student = all_student
         self.fillStudent = fillStudent
         super(AddStudentToClass, self).__init__()
         loadUi("AddStudentToClass.ui", self)
@@ -424,7 +432,7 @@ class AddStudentToClass(QMainWindow):
 
     def fillStudentTable(self):
         # Filter students not enrolled in the current class
-        students_not_enrolled = [s for s in self.students_db if s['ClassId'] == 'None']
+        students_not_enrolled = [s for s in self.all_student if s['ClassId'] == 'None']
 
         self.tableStudentData.setRowCount(len(students_not_enrolled))
         self.tableStudentData.setColumnCount(3)  # Reduced column count
@@ -441,7 +449,7 @@ class AddStudentToClass(QMainWindow):
         # Get selected student's full name
         student_name = self.tableStudentData.item(row, 1).text()
         # Find the student in the database
-        student = next(s for s in self.students_db if s['FullName'] == student_name)
+        student = next(s for s in self.all_student if s['FullName'] == student_name)
         self.addStudentToClass(student)
 
     def addStudentToClass(self, student):
@@ -449,13 +457,14 @@ class AddStudentToClass(QMainWindow):
         student['ClassId'] = self.ClassId
         QMessageBox.information(self, "Success", f"{student['FullName']} added to {self.ClassId}.")
         self.fillStudentTable()  # Refresh table after adding
-        # self.fillStudentTable()
+        # Emit the signal to notify that a student has been added
+        self.studentAdded.emit()
 
 
 
     
 class AddNewStudent(QMainWindow):
-    def __init__(self, students_db):
+    def __init__(self, all_student):
         super(AddNewStudent, self).__init__()
         loadUi("AddNewStudent.ui", self)
         self.btnCancel.clicked.connect(lambda: self.close())
@@ -466,18 +475,15 @@ class AddNewStudent(QMainWindow):
         DOB = self.dateDOB.date().toString("dd-MM-yyyy")
 
         if fullName != "":
-            # Add new student with 'None' as ClassId (not enrolled yet)
-            students_db.append({
+            all_student.append({
                 'FullName': fullName,
                 'Date': DOB,
-                'ClassId': 'None'  # Not enrolled in any class
+                'ClassId': 'None' 
             })
             QMessageBox.information(self, "Success", "New student added successfully!")
             self.txtFullName.setText("")
             self.dateDOB.setDate(QDate(2000, 1, 1))
 
-
-            
       
 # Define the main function
 def main():
