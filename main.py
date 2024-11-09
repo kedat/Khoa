@@ -27,7 +27,7 @@ all_student = [
             {'FullName': 'Jevm', 'Date': '2005-09-15', 'ClassId':'Science'},
             {'FullName': 'Sekko ', 'Date': '2005-01-15', 'ClassId':'None'},
         ]
-all_user = {'a': '12345678'}  # Dictionary to store users, format: {userName: password}
+all_user = {'admin': '12345678'}  # Dictionary to store users, format: {userName: password}
 
 class LoginSignUpWindow(QMainWindow):
     def __init__(self):
@@ -43,7 +43,7 @@ class LoginSignUpWindow(QMainWindow):
         self.lblCreateAccount.mousePressEvent = self.on_lblCreateAccount_clicked
         self.btnClose_2.clicked.connect(self.close)
         self.btnMinimize_2.clicked.connect(self.showMinimized)
-        self.btnRegister.clicked.connect(self.addUserToDB)
+        self.btnRegister.clicked.connect(self.addUser)
 
         self.btnLogInTo.clicked.connect(self.LoggingIn)
 
@@ -55,7 +55,7 @@ class LoginSignUpWindow(QMainWindow):
         self.stackedWidget.setCurrentWidget(self.SignUpPage)
 
     # Method to add a new user to the simulated database
-    def addUserToDB(self):
+    def addUser(self):
         # Get user input from text fields
         userName = self.txtUserName_2.text()
         cPassword = self.txtConfirmPassword.text()
